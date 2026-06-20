@@ -1,4 +1,27 @@
-<?php require_once 'db.php'; ?>
+<?php 
+// Link to your PDO connection file
+require_once 'database.php'; 
+
+try {
+    // 1. Fetch KPI Statistics dynamically using PDO
+    $stats_query = "SELECT 
+        (SELECT COUNT(*) FROM events) as total_events,
+        (SELECT IFNULL(SUM(quantity), 0) FROM bookings) as total_tickets,
+        (SELECT IFNULL(SUM(total_price), 0) FROM bookings) as total_revenue";
+
+    $stats_stmt = $pdo->query($stats_query);
+    $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+
+    // 2. Fetch Upcoming Events for the table using PDO
+    $events_query = "SELECT event_name, event_date, venue FROM events WHERE event_date >= CURDATE() ORDER BY event_date ASC";
+    $events_stmt = $pdo->query($events_query);
+    $events = $events_stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+} catch (\PDOException $e) {
+    // Fail gracefully if a query breaks
+    die("Dashboard Error: " . $e->getMessage());
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,11 +30,9 @@
     <title>EventEase - Dashboard</title>
     
     <link rel="stylesheet" href="mainstyle.css">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-
         * {
             margin: 0;
             padding: 0;
@@ -44,7 +65,7 @@
         }
 
         .navbar a:hover, .navbar a.active {
-            color: #a0b2c6; /* Subtle hover effect */
+            color: #a0b2c6;
         }
 
         .main-container {
@@ -157,7 +178,7 @@
         <a href="eventmanagement.html">Home</a>
         <a href="events.html">Events</a>
         <a href="booking.html">Booking</a>
-        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="dashboard.php" class="active">Dashboard</a>
         <a href="feedback.html">Feedback</a>
     </nav>
 
@@ -172,21 +193,21 @@
                 <div class="stat-box">
                     <i class="fa-solid fa-calendar-days stat-icon"></i>
                     <div class="stat-info">
-                        <h3>12</h3>
+                        <h3><?php echo number_format($stats['total_events'] ?? 0); ?></h3>
                         <p>Total Events</p>
                     </div>
                 </div>
                 <div class="stat-box">
                     <i class="fa-solid fa-ticket stat-icon"></i>
                     <div class="stat-info">
-                        <h3>1,245</h3>
+                        <h3><?php echo number_format($stats['total_tickets'] ?? 0); ?></h3>
                         <p>Tickets Sold</p>
                     </div>
                 </div>
                 <div class="stat-box">
                     <i class="fa-solid fa-dollar-sign stat-icon"></i>
                     <div class="stat-info">
-                        <h3>$14,250</h3>
+                        <h3>$<?php echo number_format($stats['total_revenue'] ?? 0, 2); ?></h3>
                         <p>Total Revenue</p>
                     </div>
                 </div>
@@ -204,24 +225,20 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td><strong>Tech Conference 2026</strong></td>
-                            <td>July 15, 2026</td>
-                            <td>Convention Center</td>
-                            <td>Confirmed</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Summer Music Festival</strong></td>
-                            <td>August 02, 2026</td>
-                            <td>Outdoor Arena</td>
-                            <td>In Progress</td>
-                        </tr>
-                        <tr>
-                            <td><strong>Charity Gala Dinner</strong></td>
-                            <td>Sept 18, 2026</td>
-                            <td>Grand Ballroom</td>
-                            <td>Confirmed</td>
-                        </tr>
+                        <?php if (!empty($events)): ?>
+                            <?php foreach ($events as $row): ?>
+                                <tr>
+                                    <td><strong><?php echo htmlspecialchars($row['event_name']); ?></strong></td>
+                                    <td><?php echo date('F j, Y', strtotime($row['event_date'])); ?></td>
+                                    <td><?php echo htmlspecialchars($row['venue']); ?></td>
+                                    <td><span style="color: green; font-weight: bold;">Upcoming</span></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" style="text-align: center; color: #777;">No upcoming events found.</td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
